@@ -1,0 +1,59 @@
+Project: Route Optimizer (Mumbai-Pune PBF)
+
+Overview:
+- Purpose: Load OpenStreetMap PBF data (western India), build a directed road graph, compute shortest paths and solve Vehicle Routing Problems (VRP) for multiple trucks, and visualize routes on maps.
+- Location: main code in the workspace folder `ROUTE` (scripts: `main.py`, `vrp_cli.py`).
+
+Data:
+- Raw PBF: DATA/western-zone-260518.osm.pbf
+- Generated outputs: DATA/vrp_map.html, DATA/route_*.png, cached graph pickles in the repo (gzipped pickles saved by `main.py`).
+
+Key Components / Libraries:
+- pyosmium: PBF parsing (two-pass: ways then nodes) to extract highways and nodes.
+- networkx: Road graph representation (directed graph), shortest path via `nx.bidirectional_dijkstra`.
+- OR-Tools (`ortools`): VRP solver (RoutingIndexManager, RoutingModel, search parameters).
+- folium (optional, for interactive HTML maps): `vrp_cli.py` exports `DATA/vrp_map.html`.
+- matplotlib: Static plotting (PNG) used by `main.py` plotting helpers.
+- osmnx (optional): nearest-node heuristics; fallback to haversine is used if osmnx is unavailable.
+- gzip + pickle: caching intermediate data (ways, nodes, graph) to resume work quickly.
+
+Important Scripts / Functions:
+- `main.py`:
+  - `load_or_build_graph(force_rebuild=False)`: load cached graph or build from PBF.
+  - `shortest_route(graph, src, dst)`: compute shortest path between two places.
+  - `build_distance_matrix_for_vrp(...)`: prepare distance/time matrix for OR-Tools.
+  - `solve_vrp(graph, depot_name, depot, deliveries, vehicle_count, vehicle_capacity)`: runs OR-Tools and returns a `VRPResult` containing `routes`.
+  - `plot_vrp_routes(graph, vrp_result, lookup)`: static matplotlib plotting.
+
+- `vrp_cli.py`:
+  - Interactive CLI that prompts user for depot, number of stops, stop locations (preset names or lat,lon), number of trucks, and capacity.
+  - Loads graph via `main.load_or_build_graph()` and calls `main.solve_vrp()`.
+  - Exports interactive `DATA/vrp_map.html` (folium) with per-segment coloring and numbered markers.
+
+Usage Examples:
+1) Run the interactive CLI (prompts for inputs):
+   py vrp_cli.py
+
+2) Rebuild the graph (from `main.py`):
+   py main.py --rebuild
+
+Dependencies (install via pip):
+   py -m pip install pyosmium networkx matplotlib ortools folium
+   # Optional: osmnx (requires scikit-learn); if not installed code falls back to haversine nearest-node
+
+Notes & Known Limitations:
+- First-time PBF parsing and graph build is slow and memory-intensive; expect long runtime and large pickles.
+- Cached gzipped pickles sometimes get corrupted if interrupted; main.py has auto-detect and rebuild on load errors.
+- VRP solver can produce empty routes if the number of vehicles exceeds non-empty routes or if deliveries are few; `vrp_cli.py` skips empty routes when drawing.
+- Folium map may display a white screen if not centered; `vrp_cli.py` now calls `fit_bounds()` and uses OpenStreetMap tiles to avoid that.
+- For very large graphs the distance-matrix construction can be slow; consider sampling or clustering deliveries for large-scale VRP.
+
+Recommended Next Steps:
+- Test `py vrp_cli.py` with the existing cached graph to validate route display and colors.
+- Add a non-interactive mode to `vrp_cli.py` that reads depot/deliveries from CSV (helpful for automation).
+- Add a `requirements.txt` listing exact package versions for reproducibility.
+
+Contact / Maintainer:
+- Workspace owner (you) — files are in `ROUTE/`.
+
+File: ROUTE/PROJECT_SUMMARY.txt
